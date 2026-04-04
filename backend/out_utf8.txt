@@ -1,0 +1,13 @@
+file:///C:/Users/somes/Downloads/neuro-dsa-firebase/backend/src/firebase/client.js:43
+    throw new Error(
+          ^
+
+Error: ❌  Could not load Firebase service account from "./firebase-service-account.json".
+    Error: ENOENT: no such file or directory, open 'C:\Users\somes\Downloads\neuro-dsa-firebase\firebase-service-account.json'
+    at initFirebase (file:///C:/Users/somes/Downloads/neuro-dsa-firebase/backend/src/firebase/client.js:43:11)
+    at file:///C:/Users/somes/Downloads/neuro-dsa-firebase/backend/src/firebase/client.js:51:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5)
+
+Node.js v24.4.1
