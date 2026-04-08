@@ -32,7 +32,7 @@ export default function DashboardPage() {
     .map(([id]) => ({ id, label: topicsMap[id] || id }))
 
   return (
-    <div className="min-h-screen relative bg-[#07111C]">
+    <div className="min-h-screen relative flex flex-col">
       <AnimatedBackground />
 
       <main className="relative pt-12 pb-20 px-4 sm:px-6">

@@ -68,7 +68,7 @@ export default function LearnPage() {
   const filtered = enriched.filter(t => activeTab === 'All' || t.difficulty === activeTab)
 
   return (
-    <div className="min-h-screen relative bg-[#07111C]">
+    <div className="min-h-screen relative flex flex-col">
       <AnimatedBackground />
 
       <motion.main 
@@ -125,7 +125,7 @@ export default function LearnPage() {
 
                 return (
                   <Link key={topic.id} to={`/learn/${topic.id}`} className="group block">
-                    <div className="relative bg-[#0c1a27] border border-white/5 rounded-2xl p-6 h-full flex flex-col transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_28px_rgba(123,97,255,0.2)] hover:border-[#7B61FF]/30">
+                    <div className="relative overflow-hidden bg-[#0c1a27] border border-white/5 rounded-2xl p-6 h-full flex flex-col transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_28px_rgba(123,97,255,0.2)] hover:border-[#7B61FF]/30">
                       {/* Top row */}
                       <div className="flex justify-between items-start mb-5">
                         <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${topic.color || 'from-violet-500 to-purple-600'} flex items-center justify-center shadow-lg`}>

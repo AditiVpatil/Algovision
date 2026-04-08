@@ -90,7 +90,7 @@ export default function LearnTopicPage() {
     VIZ_MAP[topicId] ?? { Component: ArrayViz, props: { initialArray: [10,20,30,40,50] } }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#07111C]">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
         <div className="w-12 h-12 border-2 border-[#7B61FF] border-t-transparent rounded-full animate-spin mx-auto" />
         <p className="text-[#94A3B8] text-sm">Loading topic...</p>
@@ -99,7 +99,7 @@ export default function LearnTopicPage() {
   )
 
   if (!topic) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#07111C]">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <p className="text-white text-xl font-bold mb-4">Topic not found</p>
         <Link to="/learn" className="text-[#7B61FF] hover:underline">← Back to topics</Link>
@@ -108,7 +108,7 @@ export default function LearnTopicPage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#07111C] relative">
+    <div className="min-h-screen relative flex flex-col">
       {/* AI Tutor floating */}
       <AiTutor topic={topicId} isOpen={aiOpen} onClose={() => setAiOpen(false)} />
 

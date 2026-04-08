@@ -151,7 +151,7 @@ export default function PracticePage() {
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
-        className="min-h-screen relative bg-[#07111C]"
+        className="min-h-screen relative flex flex-col"
       >
         <AnimatedBackground />
         <AiTutor topic="general" isOpen={aiOpen} onClose={() => setAiOpen(false)} />
@@ -331,7 +331,7 @@ export default function PracticePage() {
     <motion.div 
       initial={{ y: 20, opacity: 0 }} 
       animate={{ y: 0, opacity: 1 }} 
-      className="h-screen bg-[#07111C] flex flex-col overflow-hidden"
+      className="h-screen flex flex-col overflow-hidden"
     >
       <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0A0F1E] flex-shrink-0 backdrop-blur-2xl">
         <div className="flex items-center gap-6">
