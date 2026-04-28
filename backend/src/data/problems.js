@@ -19,6 +19,12 @@ export const problems = [
       javascript: "function solve(nums, target) {\n    // Write your solution here\n}\n\nconsole.log(solve([2, 7, 11, 15], 9));",
       java: "public class Solution {\n    public int[] solve(int[] nums, int target) {\n        // Write your solution here\n        return new int[]{};\n    }\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        int[] res = sol.solve(new int[]{2, 7, 11, 15}, 9);\n        System.out.println(\"[\" + res[0] + \", \" + res[1] + \"]\");\n    }\n}",
       cpp: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nvector<int> solve(vector<int>& nums, int target) {\n    // Write your solution here\n    return {};\n}\n\nint main() {\n    vector<int> nums = {2, 7, 11, 15};\n    vector<int> res = solve(nums, 9);\n    if(res.size() == 2) cout << \"[\" << res[0] << \", \" << res[1] << \"]\\n\";\n    return 0;\n}"
+    },
+    optimal: {
+      time: 'O(N)',
+      space: 'O(N)',
+      approach: 'One-pass Hash Map',
+      code: 'Use a hash map to store value-to-index mappings. For each number, check if [target - num] exists in the map.'
     }
   },
   {
@@ -40,6 +46,12 @@ export const problems = [
       javascript: "function maxProfit(prices) {\n    // Write your solution here\n}\n\nconsole.log(maxProfit([7,1,5,3,6,4]));",
       java: "public class Solution {\n    public int maxProfit(int[] prices) {\n        // Write your solution here\n        return 0;\n    }\n    public static void main(String[] args) {\n        System.out.println(new Solution().maxProfit(new int[]{7,1,5,3,6,4}));\n    }\n}",
       cpp: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint maxProfit(vector<int>& prices) {\n    // Write your solution here\n    return 0;\n}\n\nint main() {\n    vector<int> prices = {7,1,5,3,6,4};\n    cout << maxProfit(prices) << \"\\n\";\n    return 0;\n}"
+    },
+    optimal: {
+      time: 'O(N)',
+      space: 'O(1)',
+      approach: 'Single Pass with MinPrice Tracking',
+      code: 'Iterate once, keeping track of the minimum price seen so far and calculating profit at each step.'
     }
   },
   {
@@ -62,6 +74,12 @@ export const problems = [
       javascript: "function containsDuplicate(nums) {\n    // Write your solution here\n}\n\nconsole.log(containsDuplicate([1,2,3,1]));",
       java: "public class Solution {\n    public boolean containsDuplicate(int[] nums) {\n        // Write your solution here\n        return false;\n    }\n    public static void main(String[] args) {\n        System.out.println(new Solution().containsDuplicate(new int[]{1,2,3,1}));\n    }\n}",
       cpp: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool containsDuplicate(vector<int>& nums) {\n    // Write your solution here\n    return false;\n}\n\nint main() {\n    vector<int> nums = {1,2,3,1};\n    cout << (containsDuplicate(nums) ? \"true\" : \"false\") << \"\\n\";\n    return 0;\n}"
+    },
+    optimal: {
+      time: 'O(N)',
+      space: 'O(N)',
+      approach: 'Hash Set',
+      code: 'Use a hash set to store seen numbers. If a number is already in the set, a duplicate exists.'
     }
   },
   {
@@ -74,6 +92,7 @@ export const problems = [
     tags: ['Array', 'Binary Search'],
     description: 'Given a sorted array and a target, return the index or -1 if not found.',
     solved: false,
+    optimal: { time: 'O(log N)', space: 'O(1)', approach: 'Iterative Binary Search' }
   },
   {
     id: 5,
@@ -85,6 +104,7 @@ export const problems = [
     tags: ['Array', 'Binary Search'],
     description: 'Find the minimum element in a rotated sorted array.',
     solved: false,
+    optimal: { time: 'O(log N)', space: 'O(1)', approach: 'Modified Binary Search' }
   },
   {
     id: 6,
@@ -96,6 +116,7 @@ export const problems = [
     tags: ['Linked List', 'Recursion'],
     description: 'Reverse a singly linked list.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(1)', approach: 'Iterative In-place Reversal' }
   },
   {
     id: 7,
@@ -107,6 +128,7 @@ export const problems = [
     tags: ['Hash Table', 'Linked List', 'Two Pointers'],
     description: 'Detect if a linked list has a cycle using Floyd\'s algorithm.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(1)', approach: 'Floyd\'s Tortoise and Hare' }
   },
   {
     id: 8,
@@ -118,6 +140,7 @@ export const problems = [
     tags: ['Linked List', 'Recursion'],
     description: 'Merge two sorted linked lists and return it as a sorted list.',
     solved: false,
+    optimal: { time: 'O(N+M)', space: 'O(1)', approach: 'Iterative Dummy Node' }
   },
   {
     id: 9,
@@ -129,6 +152,7 @@ export const problems = [
     tags: ['Tree', 'DFS', 'BFS', 'Binary Tree'],
     description: 'Invert a binary tree (mirror it).',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(H)', approach: 'Recursive DFS' }
   },
   {
     id: 10,
@@ -140,6 +164,7 @@ export const problems = [
     tags: ['Tree', 'DFS', 'BFS'],
     description: 'Return the maximum depth of a binary tree.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(H)', approach: 'Recursive DFS' }
   },
   {
     id: 11,
@@ -151,6 +176,7 @@ export const problems = [
     tags: ['Tree', 'DFS', 'BST'],
     description: 'Determine if a binary tree is a valid BST.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(H)', approach: 'Recursive DFS with Range' }
   },
   {
     id: 12,
@@ -162,6 +188,7 @@ export const problems = [
     tags: ['Array', 'DFS', 'BFS', 'Union Find'],
     description: 'Count the number of islands in a 2D grid using DFS/BFS.',
     solved: false,
+    optimal: { time: 'O(R*C)', space: 'O(R*C)', approach: 'DFS In-place Sink' }
   },
   {
     id: 13,
@@ -173,6 +200,7 @@ export const problems = [
     tags: ['Hash Table', 'DFS', 'BFS', 'Graph'],
     description: 'Clone a graph given a reference of a node.',
     solved: false,
+    optimal: { time: 'O(N+E)', space: 'O(N)', approach: 'DFS with Hash Map' }
   },
   {
     id: 14,
@@ -184,6 +212,7 @@ export const problems = [
     tags: ['Math', 'Dynamic Programming', 'Memoization'],
     description: 'Count distinct ways to climb n stairs, taking 1 or 2 steps at a time.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(1)', approach: 'Fibonacci Iterative' }
   },
   {
     id: 15,
@@ -195,6 +224,7 @@ export const problems = [
     tags: ['Array', 'Dynamic Programming', 'BFS'],
     description: 'Find the minimum coins needed to make a given amount.',
     solved: false,
+    optimal: { time: 'O(Amount * Coins)', space: 'O(Amount)', approach: 'Bottom-up DP' }
   },
   {
     id: 16,
@@ -206,6 +236,7 @@ export const problems = [
     tags: ['Array', 'Binary Search', 'Dynamic Programming'],
     description: 'Find the length of the longest strictly increasing subsequence.',
     solved: false,
+    optimal: { time: 'O(N log N)', space: 'O(N)', approach: 'Patience Sorting' }
   },
   {
     id: 17,
@@ -217,6 +248,7 @@ export const problems = [
     tags: ['Array', 'Prefix Sum'],
     description: 'Return an array where each element is the product of all other elements.',
     solved: false,
+    optimal: { time: 'O(N)', space: 'O(1)', approach: 'Prefix/Suffix Multi-pass' }
   },
   {
     id: 18,
@@ -228,5 +260,6 @@ export const problems = [
     tags: ['Array', 'Binary Search'],
     description: 'Search a target in a possibly rotated sorted array.',
     solved: false,
+    optimal: { time: 'O(log N)', space: 'O(1)', approach: 'Modified Binary Search' }
   },
 ]

@@ -174,12 +174,29 @@ Maintain a conversational tone based on the history provided.`
     res.end()
   } catch (err) {
     console.error('OpenAI Error:', err.message)
+    
+    // Check if it's a quota or auth error
+    const isQuotaError = err.message.includes('429') || err.message.includes('quota')
+    const isAuthError = err.message.includes('401') || err.message.includes('api_key')
+
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.write('⚠️ **AI Tutor encountered an error.** ' + err.message)
+      res.setHeader('Transfer-Encoding', 'chunked')
+      
+      if (isQuotaError) {
+        res.write('🚀 **AlgoVision Simulated AI (Offline Mode)**\n\n*Note: OpenAI API quota exceeded. Switching to local simulation.*\n\n')
+        res.write(`It seems you're asking about **${topic || 'DSA'}**. Here are some general tips:\n`)
+        res.write('- Always consider the **Time Complexity** (how many operations) and **Space Complexity** (how much extra memory).\n')
+        res.write('- For optimization, think about using **Hash Maps** to store results or **Two Pointers** to reduce nested loops.\n')
+        res.write('- Check the **Visualize Optimal** tool in the Practice Arena for a step-by-step best approach!')
+      } else if (isAuthError) {
+        res.write('🔑 **AI Tutor Configuration Error**\n\nThe OpenAI API key is invalid or missing. Please contact the administrator.')
+      } else {
+        res.write('⚠️ **AI Tutor encountered an error.** ' + err.message)
+      }
       res.end()
     } else {
-      res.end('\n\n[Connection error — please try again]')
+      res.end('\n\n[Connection interrupted — simulated response unavailable]')
     }
   }
 })

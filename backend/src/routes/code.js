@@ -3,6 +3,7 @@ import axios from 'axios'
 import OpenAI from 'openai'
 import { db } from '../firebase/client.js'
 import { authenticate } from '../middleware/auth.js'
+import { problems } from '../data/problems.js'
 
 const router = Router()
 const PISTON_URL = process.env.PISTON_API_URL || 'https://emkc.org/api/v2/piston'
@@ -12,7 +13,7 @@ const LANG_MAP = {
   python:     { language: 'python',      version: '3.10.0' },
   javascript: { language: 'javascript',  version: '18.15.0', runtime: 'node' },
   java:       { language: 'java',        version: '15.0.2' },
-  cpp:        { language: 'c++',         version: '10.2.0' },
+  cpp:        { language: 'c++',         version: '10.2.0', runtime: 'gcc' },
 }
 
 // ── POST /api/code/run ────────────────────────────────────────────────────────
@@ -198,6 +199,7 @@ IMPORTANT: optimizedCode MUST be a complete, runnable ${language} program (inclu
     analysis.improvements       = analysis.improvements       || []
     analysis.optimizedCode      = analysis.optimizedCode      || ''
     analysis.encouragement      = analysis.encouragement      || 'Keep going!'
+    analysis.passed             = analysis.score >= 70
 
     // Save to Firestore (non-blocking)
     if (db) {
@@ -219,56 +221,70 @@ IMPORTANT: optimizedCode MUST be a complete, runnable ${language} program (inclu
 
     res.json(analysis)
   } catch (err) {
-    console.warn('OpenAI Analysis error:', err.message)
+    const { code, language, problemId, topicId, testResults = [] } = req.body
+    
+    const problem = problems.find(p => String(p.id) === String(problemId))
+    const title = problem?.title || ''
+    const optimal = problem?.optimal || { time: 'O(N)', space: 'O(N)', approach: 'Efficient Approach' }
 
-    // Intelligent mock based on code complexity heuristics
-    const lines = code.split('\n').filter(l => l.trim()).length
-    const hasNestedLoop = /for.*\n.*for|while.*\n.*while/.test(code)
-    const hasHashMap = /dict|HashMap|map\[|object|{}/i.test(code)
-    const hasSort = /sort|sorted/.test(code)
+    // 1. Smarter Starter Detection
+    const cleanCode = code.replace(/\/\/.*|\/\*[\s\S]*?\*\/|#.*/g, '').trim();
+    const hasLogic = cleanCode.split('\n').filter(line => line.trim()).length > 10;
 
-    const mockScore = hasNestedLoop ? 45 : hasHashMap ? 85 : hasSort ? 65 : 55
-    const mockTime = hasNestedLoop ? 'O(N²)' : hasHashMap ? 'O(N)' : hasSort ? 'O(N log N)' : 'O(N)'
-    const mockSpace = hasHashMap ? 'O(N)' : 'O(1)'
+    if (!hasLogic && cleanCode.length < 100) {
+      return res.json({
+        score: 0, passed: false, encouragement: 'Please implement the solution logic first!',
+        timeComplexity: '—', spaceComplexity: '—', optimizedCode: '// Implement logic'
+      });
+    }
 
+    // 2. Test-Driven Accuracy
+    const passCount = testResults.filter(r => r.passed).length;
+    const totalTests = testResults.length;
+    const passRatio = totalTests > 0 ? passCount / totalTests : 0;
+    
+    // 3. Complexity Heuristics
+    const hasNestedLoop = /for.*\n.*for|while.*\n.*while|for.*\{[\s\S]*for/.test(code);
+    const hasHashMap = /dict|HashMap|map\[|object|Map\(|Set\(|\{\}/i.test(code);
+    
+    let baseScore = Math.round(passRatio * 70);
+    let complexityBonus = 0;
+
+    if (optimal.time === 'O(N)') {
+       if (!hasNestedLoop) complexityBonus += 15;
+       if (hasHashMap) complexityBonus += 15;
+    } else if (optimal.time === 'O(log N)') {
+       if (code.includes('/ 2') || code.includes('>> 1')) complexityBonus += 30;
+    }
+
+    const finalScore = Math.min(100, baseScore + complexityBonus);
+    
     const mockAnalysis = {
-      score: mockScore,
-      timeComplexity: mockTime,
-      spaceComplexity: mockSpace,
-      optimalTimeComplexity: 'O(N)',
-      optimalSpaceComplexity: 'O(N)',
-      currentApproach: hasNestedLoop
-        ? 'The solution uses nested loops which results in quadratic time complexity.'
-        : 'The solution iterates through the data with a reasonable approach.',
-      improvements: [
-        'Consider using a Hash Map to reduce time complexity to O(N).',
-        'Store intermediate results to avoid redundant computation.',
-        'Think about what information from previous iterations can be reused.'
-      ],
-      optimizedCode: language === 'python'
-        ? `def solve(nums, target):\n    seen = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in seen:\n            return [seen[complement], i]\n        seen[num] = i\n    return []\n\nprint(solve([2, 7, 11, 15], 9))`
-        : language === 'javascript'
-        ? `function solve(nums, target) {\n  const seen = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (seen.has(complement)) return [seen.get(complement), i];\n    seen.set(nums[i], i);\n  }\n  return [];\n}\nconsole.log(solve([2, 7, 11, 15], 9));`
-        : '// Optimal implementation using Hash Map\n// O(N) time, O(N) space',
-      optimizedApproachName: 'Hash Map (One-Pass)',
-      encouragement: 'Good effort — you have the right instinct, now focus on reducing time complexity!'
+      score: finalScore,
+      passed: finalScore >= 70 && passRatio > 0.5,
+      timeComplexity: hasNestedLoop ? 'O(N²)' : optimal.time,
+      spaceComplexity: hasHashMap ? 'O(N)' : 'O(1)',
+      optimalTimeComplexity: optimal.time,
+      optimalSpaceComplexity: optimal.space,
+      currentApproach: passRatio === 1 
+        ? `Correct solution! You passed ${passCount}/${totalTests} tests.` 
+        : `Your solution passed ${passCount}/${totalTests} tests but needs ${passRatio === 0 ? 'to be implemented' : 'fixing'}.`,
+      improvements: passRatio < 1 
+        ? ['Debug your solution to pass all test cases.', 'Check edge cases like empty input or single elements.']
+        : [`Try to reach ${optimal.time} if you haven't already.`, `Focus on ${optimal.approach} for better performance.`],
+      optimizedCode: optimal.code || `// Optimal implementation: ${optimal.approach}`,
+      optimizedApproachName: optimal.approach,
+      encouragement: finalScore >= 90 ? '🏆 Perfect! You hit the optimal target.' : 'Keep going! You are almost there.'
     }
 
     if (db) {
       db.collection('submissions').add({
         userId: req.user.id || 'anonymous',
-        topicId: topicId || 'unknown',
-        problemId: String(problemId || 'unknown'),
-        code, language,
-        optimizationScore: mockAnalysis.score,
-        timeComplexity: mockAnalysis.timeComplexity,
-        spaceComplexity: mockAnalysis.spaceComplexity,
-        optimalTimeComplexity: mockAnalysis.optimalTimeComplexity,
-        optimalSpaceComplexity: mockAnalysis.optimalSpaceComplexity,
-        aiAnalysis: JSON.stringify(mockAnalysis),
-        passed: mockAnalysis.score >= 70,
+        problemId: String(problemId),
+        optimizationScore: finalScore,
+        passed: mockAnalysis.passed,
         createdAt: new Date().toISOString(),
-      }).catch(e => console.error('Firestore save failed:', e.message))
+      }).catch(() => {});
     }
 
     res.json(mockAnalysis)

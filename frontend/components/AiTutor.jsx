@@ -71,6 +71,18 @@ export function AiTutor({ topic, isOpen, onClose, code = '' }) {
         }),
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem('av_token')
+        localStorage.removeItem('av_user')
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          text: `🔒 Your session has expired. Please [log in again](/login) to continue.`,
+          ts: Date.now()
+        }])
+        // Optional: window.location.href = '/login'
+        return
+      }
+
       if (!response.ok) {
         // Non-2xx: try to read whatever is in the body
         const errText = await response.text().catch(() => `Server error (${response.status})`)
