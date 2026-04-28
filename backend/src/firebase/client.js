@@ -1,5 +1,5 @@
 import admin from 'firebase-admin'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
@@ -7,6 +7,8 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+// Project root = 2 levels up from src/firebase/
+const PROJECT_ROOT = resolve(__dirname, '../..')
 
 let db = null
 
@@ -27,10 +29,17 @@ function initFirebase() {
     return null
   }
 
+  // Resolve relative to project root (backend/) so ./firebase-service-account.json works
+  const absolutePath = resolve(PROJECT_ROOT, serviceAccountPath)
+
+  if (!existsSync(absolutePath)) {
+    console.warn(`⚠️  Firebase service account file not found at "${absolutePath}". Firebase will be bypassed.`)
+    db = null
+    return null
+  }
+
   try {
-    const serviceAccount = JSON.parse(
-      readFileSync(resolve(__dirname, '../..', serviceAccountPath), 'utf8')
-    )
+    const serviceAccount = JSON.parse(readFileSync(absolutePath, 'utf8'))
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -41,10 +50,12 @@ function initFirebase() {
     console.log(`✅ Firestore connected → project: ${projectId}`)
     return db
   } catch (err) {
-    throw new Error(
-      `❌  Could not load Firebase service account from "${serviceAccountPath}".\n` +
-      `    Error: ${err.message}`
+    console.error(
+      `❌ Could not initialize Firebase from "${absolutePath}".\n` +
+      `   Error: ${err.message}`
     )
+    db = null
+    return null
   }
 }
 

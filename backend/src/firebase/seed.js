@@ -1,36 +1,74 @@
 /**
- * Seed script — run once to populate Firestore with demo data.
+ * Seed script — run once to populate Firestore with topics, problems, and a demo user.
  * Usage:  cd backend && npm run seed
+ *
+ * This idempotent script uses set() with merge:false so it is safe to re-run —
+ * it will overwrite existing docs but never create duplicates.
  */
-import { db } from './client.js'
+
+import { db, admin } from './client.js'
+import { topics } from '../data/topics.js'
+import { problems } from '../data/problems.js'
 import bcrypt from 'bcryptjs'
 
 async function seed() {
-  console.log('🌱 Seeding Firestore...\n')
+  if (!db) {
+    console.error('❌ Firestore not connected. Check your .env and firebase-service-account.json.')
+    process.exit(1)
+  }
 
-  // ── 1. Demo User ────────────────────────────────────────────────
+  console.log('🌱 Seeding Firestore (project: algovision-1a94c)...\n')
+
+  // ── 1. Topics ──────────────────────────────────────────────────────
+  console.log(`📚 Seeding ${topics.length} topics...`)
+  const topicBatch = db.batch()
+  for (const topic of topics) {
+    const ref = db.collection('topics').doc(topic.id)
+    topicBatch.set(ref, {
+      ...topic,
+      seededAt: new Date().toISOString(),
+    })
+  }
+  await topicBatch.commit()
+  console.log(`  ✅ ${topics.length} topics written\n`)
+
+  // ── 2. Problems ────────────────────────────────────────────────────
+  console.log(`🎯 Seeding ${problems.length} problems...`)
+  const problemBatch = db.batch()
+  for (const problem of problems) {
+    // Use string id as doc key for easy lookup
+    const docId = String(problem.id)
+    const ref = db.collection('problems').doc(docId)
+    problemBatch.set(ref, {
+      ...problem,
+      seededAt: new Date().toISOString(),
+    })
+  }
+  await problemBatch.commit()
+  console.log(`  ✅ ${problems.length} problems written\n`)
+
+  // ── 3. Demo User ───────────────────────────────────────────────────
+  console.log('👤 Seeding demo user...')
   const hashed = await bcrypt.hash('demo1234', 12)
   const userId = 'demo_user_001'
 
   await db.collection('users').doc(userId).set({
     id: userId,
     username: 'demo_learner',
-    email: 'demo@neurodsa.com',
+    email: 'demo@algovision.com',
     password: hashed,
     createdAt: new Date().toISOString(),
   })
-  console.log('✅ Demo user created')
-  console.log('   Email:    demo@neurodsa.com')
-  console.log('   Password: demo1234\n')
+  console.log('  ✅ Demo user created')
+  console.log('     Email:    demo@algovision.com')
+  console.log('     Password: demo1234\n')
 
-  // ── 2. Topic Progress ───────────────────────────────────────────
+  // ── 4. Demo Topic Progress ─────────────────────────────────────────
+  console.log('📊 Seeding demo progress...')
   const progressData = [
-    { topicId: 'arrays',     stepReached: 3, completed: true  },
-    { topicId: 'sorting',    stepReached: 2, completed: false },
-    { topicId: 'searching',  stepReached: 1, completed: false },
-    { topicId: 'stack-queue',stepReached: 0, completed: false },
+    { topicId: 'arrays',      stepReached: 4, completed: true  },
+    { topicId: 'binary-search', stepReached: 2, completed: false },
   ]
-
   for (const p of progressData) {
     await db.collection('topicProgress').doc(`${userId}_${p.topicId}`).set({
       userId,
@@ -39,49 +77,31 @@ async function seed() {
       updatedAt: new Date().toISOString(),
     })
   }
-  console.log('✅ Topic progress seeded')
 
-  // ── 3. Quiz Results ─────────────────────────────────────────────
-  const quizData = [
-    { topicId: 'arrays',    score: 3, total: 4, accuracy: 75   },
-    { topicId: 'sorting',   score: 2, total: 3, accuracy: 66.7 },
-    { topicId: 'searching', score: 2, total: 2, accuracy: 100  },
-  ]
-
-  for (const q of quizData) {
-    await db.collection('quizResults').add({
-      userId,
-      ...q,
-      createdAt: new Date().toISOString(),
-    })
-  }
-  console.log('✅ Quiz results seeded')
-
-  // ── 4. Submissions ──────────────────────────────────────────────
+  // ── 5. Demo Submissions ────────────────────────────────────────────
   const submissions = [
-    { problemId: 'max-element',      topicId: 'arrays',    optimizationScore: 55,  yourComplexity: 'O(n²)',    language: 'python'     },
-    { problemId: 'reverse-array',    topicId: 'arrays',    optimizationScore: 72,  yourComplexity: 'O(n)',     language: 'python'     },
-    { problemId: 'max-element',      topicId: 'arrays',    optimizationScore: 88,  yourComplexity: 'O(n)',     language: 'python'     },
-    { problemId: 'bubble-sort-impl', topicId: 'sorting',   optimizationScore: 80,  yourComplexity: 'O(n²)',    language: 'javascript' },
-    { problemId: 'binary-search',    topicId: 'searching', optimizationScore: 92,  yourComplexity: 'O(log n)', language: 'python'     },
+    { problemId: '1', topicId: 'arrays', optimizationScore: 72, timeComplexity: 'O(n)', spaceComplexity: 'O(n)', language: 'python', passed: true },
+    { problemId: '2', topicId: 'arrays', optimizationScore: 88, timeComplexity: 'O(n)', spaceComplexity: 'O(1)', language: 'javascript', passed: true },
   ]
-
   for (const s of submissions) {
     await db.collection('submissions').add({
       userId,
       ...s,
-      code: '# sample submission\npass',
-      passed: s.optimizationScore >= 70,
+      code: '# demo submission\npass',
+      aiAnalysis: JSON.stringify({ score: s.optimizationScore }),
       createdAt: new Date().toISOString(),
     })
   }
-  console.log('✅ Submissions seeded')
+  console.log('  ✅ Demo progress + submissions seeded\n')
 
-  console.log('\n🎉 Firestore seed complete!')
+  console.log('🎉 Firestore seed complete! The app is ready to use.\n')
+  console.log('   Start backend:  cd backend && npm start')
+  console.log('   Start frontend: cd frontend && npm run dev')
   process.exit(0)
 }
 
 seed().catch(err => {
-  console.error('Seed failed:', err.message)
+  console.error('❌ Seed failed:', err.message)
+  console.error(err)
   process.exit(1)
 })

@@ -9,6 +9,12 @@ router.post('/quiz', authenticate, async (req, res) => {
   const { topicId, score, total } = req.body
   if (!topicId || score == null || !total)
     return res.status(400).json({ message: 'topicId, score, total required' })
+
+  if (!db) {
+    console.warn('⚠️ Firebase unavailable – quiz result not persisted.')
+    return res.json({ id: `local_${Date.now()}`, topicId, score, total })
+  }
+
   try {
     const ref = await db.collection('quizResults').add({
       userId: req.user.id, topicId, score, total,
@@ -31,15 +37,22 @@ router.post('/quiz', authenticate, async (req, res) => {
 router.post('/topic', authenticate, async (req, res) => {
   const { topicId, stepReached, completed } = req.body
   if (!topicId) return res.status(400).json({ message: 'topicId required' })
+
+  const update = {
+    userId: req.user.id, topicId,
+    stepReached: stepReached ?? 0,
+    completed: completed ?? false,
+    completedAt: completed ? new Date().toISOString() : null,
+    updatedAt: new Date().toISOString(),
+  }
+
+  if (!db) {
+    console.warn('⚠️ Firebase unavailable – topic progress not persisted.')
+    return res.json(update)
+  }
+
   try {
     const docId = `${req.user.id}_${topicId}`
-    const update = {
-      userId: req.user.id, topicId,
-      stepReached: stepReached ?? 0,
-      completed: completed ?? false,
-      completedAt: completed ? new Date().toISOString() : null,
-      updatedAt: new Date().toISOString(),
-    }
     await db.collection('topicProgress').doc(docId).set(update, { merge: true })
     res.json(update)
   } catch (err) {
@@ -50,6 +63,7 @@ router.post('/topic', authenticate, async (req, res) => {
 
 // GET /api/progress/topic/:topicId
 router.get('/topic/:topicId', authenticate, async (req, res) => {
+  if (!db) return res.json({ stepReached: 0, completed: false })
   try {
     const doc = await db.collection('topicProgress')
       .doc(`${req.user.id}_${req.params.topicId}`).get()
@@ -61,6 +75,7 @@ router.get('/topic/:topicId', authenticate, async (req, res) => {
 
 // GET /api/progress/all
 router.get('/all', authenticate, async (req, res) => {
+  if (!db) return res.json({ success: true, data: {} })
   try {
     const snap = await db.collection('topicProgress')
       .where('userId', '==', req.user.id).get()
@@ -77,6 +92,16 @@ router.get('/all', authenticate, async (req, res) => {
 
 // GET /api/progress/dashboard
 router.get('/dashboard', authenticate, async (req, res) => {
+  if (!db) {
+    return res.json({
+      topicsCompleted: 0,
+      problemsSolved: 0,
+      avgOptimizationScore: 0,
+      totalSubmissions: 0,
+      quizAccuracy: [],
+      optimizationGrowth: [],
+    })
+  }
   try {
     const userId = req.user.id
 

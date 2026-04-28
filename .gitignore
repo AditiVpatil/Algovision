@@ -2,3 +2,5 @@
 .env.*
 backend/firebase-service-account.json
 backend/.env
+backend/.env.example
+backend/src/firebase.js

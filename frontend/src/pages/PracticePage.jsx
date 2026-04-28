@@ -8,7 +8,7 @@ import {
   Send, Maximize2, Minimize2, RotateCcw, AlertTriangle,
   Loader2, Cpu, Brain, CheckCircle, Info, Layers, 
   GitBranch, Network, Box, ChevronLeft, LayoutGrid, ArrowRight,
-  Bookmark, BookmarkCheck, X, Eye
+  Bookmark, BookmarkCheck, X, Eye, TrendingUp
 } from 'lucide-react'
 import { AiTutor } from '@/components/AiTutor'
 
@@ -34,9 +34,16 @@ export default function PracticePage() {
   const [selectedProblem, setSelectedProblem] = useState(null)
   const [view, setSelectedView] = useState('list') // 'list' | 'editor'
 
+  const [userCodes, setUserCodes] = useState({
+    python: starters.python,
+    javascript: starters.javascript,
+    java: starters.java,
+    cpp: starters.cpp
+  })
   const [code, setCode] = useState(starters.python)
   const [language, setLanguage] = useState('python')
-  const [output, setOutput] = useState('')
+  const [stdin, setStdin] = useState('')
+  const [output, setOutput] = useState(null) // Object with stdout, stderr, compileErr
   const [isRunning, setIsRunning] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiAnalysis, setAiAnalysis] = useState(null)
@@ -67,7 +74,7 @@ export default function PracticePage() {
 
   const runCode = async () => {
     setIsRunning(true)
-    setOutput('Running code...')
+    setOutput({ stdout: 'Running code...', stderr: '', compileErr: '' })
     try {
       const token = localStorage.getItem('av_token')
       const res = await fetch(`${API_BASE_URL}/code/run`, {
@@ -76,12 +83,17 @@ export default function PracticePage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ code, language }),
+        body: JSON.stringify({ code, language, stdin }),
       })
       const data = await res.json()
-      setOutput(data.output || 'No output')
+      setOutput({
+        stdout: data.stdout || '',
+        stderr: data.stderr || '',
+        compileErr: data.compileErr || '',
+        success: data.success
+      })
     } catch (err) {
-      setOutput('Error: ' + err.message)
+      setOutput({ stdout: '', stderr: 'Error: ' + err.message, compileErr: '' })
     } finally {
       setIsRunning(false)
     }
@@ -132,10 +144,27 @@ export default function PracticePage() {
 
   const openEditor = (problem) => {
     setSelectedProblem(problem)
-    setCode(starters[language] || starters.python)
+    const initialLang = 'python'
+    setLanguage(initialLang)
+    
+    // Use starters from problem if available, else use default starters
+    const initialCode = problem.starters?.[initialLang] || userCodes[initialLang] || starters[initialLang]
+    setCode(initialCode)
+    
+    // Initialize userCodes with problem starters
+    if (problem.starters) {
+      setUserCodes({
+        python: problem.starters.python || starters.python,
+        javascript: problem.starters.javascript || starters.javascript,
+        java: problem.starters.java || starters.java,
+        cpp: problem.starters.cpp || starters.cpp
+      })
+    }
+    
     setSelectedView('editor')
     setAiAnalysis(null)
-    setOutput('')
+    setOutput(null)
+    setStdin('')
   }
 
   const filtered = problems.filter(p => {
@@ -147,18 +176,23 @@ export default function PracticePage() {
     return matchSearch && matchDiff && matchTopic
   })
 
-  // ---- LIST VIEW ----
-  if (view === 'list') {
-    return (
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        className="min-h-screen relative bg-[#07111C]"
-      >
+  return (
+    <div className="min-h-screen relative bg-[#07111C]">
         <AnimatedBackground />
-        <AiTutor topic="general" isOpen={aiOpen} onClose={() => setAiOpen(false)} />
         
-        <main className="relative pt-12 pb-24 px-4 sm:px-6">
+        {/* Floating AI Tutor Trigger */}
+        <button 
+          onClick={() => setAiOpen(true)}
+          className="fixed bottom-8 right-8 z-40 w-16 h-16 rounded-full bg-gradient-to-br from-[#7B61FF] to-[#F062D0] flex items-center justify-center text-white shadow-[0_10px_30px_-5px_rgba(123,97,255,0.5)] hover:scale-110 active:scale-95 transition-all group"
+        >
+          <Bot className="w-8 h-8 group-hover:rotate-12 transition-transform" />
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#07111C] animate-pulse" />
+        </button>
+
+        <AiTutor topic={selectedProblem?.topicLabel || "general"} isOpen={aiOpen} onClose={() => setAiOpen(false)} code={code} />
+        
+        {view === 'list' ? (
+          <main className="relative pt-12 pb-24 px-4 sm:px-6">
           <div className="max-w-7xl mx-auto">
             
             {/* Header */}
@@ -324,17 +358,12 @@ export default function PracticePage() {
             </AnimatePresence>
           </div>
         </main>
-      </motion.div>
-    )
-  }
-
-  // ---- EDITOR VIEW ----
-  return (
-    <motion.div 
-      initial={{ y: 20, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      className="h-screen bg-[#07111C] flex flex-col overflow-hidden"
-    >
+        ) : (
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            className="h-screen bg-[#07111C] flex flex-col overflow-hidden relative z-10"
+          >
       <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0A0F1E] flex-shrink-0 backdrop-blur-2xl">
         <div className="flex items-center gap-6">
           <button
@@ -358,7 +387,11 @@ export default function PracticePage() {
             {Object.keys(starters).map(l => (
               <button
                 key={l}
-                onClick={() => { setLanguage(l); setCode(starters[l]) }}
+                onClick={() => { 
+                  setUserCodes(prev => ({ ...prev, [language]: code }))
+                  setLanguage(l)
+                  setCode(userCodes[l] || starters[l])
+                }}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${language === l ? 'bg-[#7B61FF] text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 {l}
@@ -382,6 +415,20 @@ export default function PracticePage() {
               {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               Submit
             </button>
+
+            {/* Visualize Optimal Solution — appears after analysis completes */}
+            {aiAnalysis && (
+              <button
+                onClick={() => setShowOptimizedModal(true)}
+                className="relative flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-black hover:opacity-90 transition-all shadow-xl shadow-amber-500/30 active:scale-95"
+                style={{ animation: 'fadeInRight 0.5s ease forwards' }}
+              >
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white animate-ping opacity-75" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white" />
+                <Eye className="w-4 h-4" />
+                Visualize Optimal
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -396,20 +443,24 @@ export default function PracticePage() {
           <div className="prose prose-invert prose-sm max-w-none text-slate-400 space-y-8 mb-12">
             <p className="text-base font-medium leading-relaxed text-slate-300">{selectedProblem.description}</p>
 
-            <div className="space-y-4">
-              <h4 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                <Sparkles className="w-3 h-3 text-amber-500" /> Example Case
-              </h4>
-              <div className="font-mono text-[11px] bg-[#050912] p-6 rounded-3xl border border-white/5 space-y-4">
-                <div className="flex gap-4"><span className="text-slate-600 font-bold min-w-14">Input</span> <span className="text-slate-100">nums = [2,7,11,15], target = 9</span></div>
-                <div className="flex gap-4"><span className="text-slate-600 font-bold min-w-14">Output</span> <span className="text-slate-100 underline decoration-indigo-500 decoration-2">[0,1]</span></div>
+            {selectedProblem.testCases && selectedProblem.testCases.length > 0 ? (
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles className="w-3 h-3 text-amber-500" /> Example Cases
+                </h4>
+                {selectedProblem.testCases.slice(0, 2).map((tc, i) => (
+                  <div key={i} className="font-mono text-[11px] bg-[#050912] p-6 rounded-3xl border border-white/5 space-y-4">
+                    <div className="flex gap-4"><span className="text-slate-600 font-bold min-w-14">Input</span> <span className="text-slate-100">{tc.input}</span></div>
+                    <div className="flex gap-4"><span className="text-slate-600 font-bold min-w-14">Output</span> <span className="text-slate-100 underline decoration-indigo-500 decoration-2">{tc.expected}</span></div>
+                  </div>
+                ))}
               </div>
-            </div>
-            
-            <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-500/5 to-transparent border border-white/5">
-              <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Master Hint</h4>
-              <p className="text-xs italic leading-relaxed">Consider using a Hash map to achieve O(n) time complexity by storing seen values as you iterate.</p>
-            </div>
+            ) : (
+              <div className="p-6 rounded-[2rem] bg-gradient-to-br from-indigo-500/5 to-transparent border border-white/5">
+                <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Master Hint</h4>
+                <p className="text-xs italic leading-relaxed">Consider using an efficient approach to solve this challenge.</p>
+              </div>
+            )}
           </div>
 
           {aiAnalysis && (
@@ -439,29 +490,52 @@ export default function PracticePage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-[#050912] border border-white/5">
+                  <div className="p-4 rounded-2xl bg-[#050912] border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-20">
+                      <Clock className="w-8 h-8 text-white" />
+                    </div>
                     <p className="text-[8px] font-black text-slate-600 uppercase mb-1">Time Complexity</p>
-                    <p className="text-xs text-white font-mono">{aiAnalysis.timeComplexity || aiAnalysis.yourComplexity}</p>
+                    <p className="text-xs text-white font-mono">{aiAnalysis.timeComplexity}</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Optimal:</span>
+                      <span className="text-[9px] text-emerald-400 font-bold font-mono">{aiAnalysis.optimalTimeComplexity}</span>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-[#050912] border border-white/5">
+                  <div className="p-4 rounded-2xl bg-[#050912] border border-white/5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-20">
+                      <Layers className="w-8 h-8 text-emerald-500" />
+                    </div>
                     <p className="text-[8px] font-black text-emerald-500 uppercase mb-1">Space Complexity</p>
-                    <p className="text-xs text-emerald-400 font-mono">{aiAnalysis.spaceComplexity || 'O(1)'}</p>
+                    <p className="text-xs text-emerald-400 font-mono">{aiAnalysis.spaceComplexity}</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Optimal:</span>
+                      <span className="text-[9px] text-emerald-400 font-bold font-mono">{aiAnalysis.optimalSpaceComplexity}</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-4 pt-4">
+                  <div className="p-4 rounded-2xl bg-[#7B61FF]/5 border border-[#7B61FF]/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[9px] font-black text-[#7B61FF] uppercase tracking-widest">Efficiency Rating</p>
+                      <span className="text-[10px] font-bold text-white">{aiAnalysis.score}%</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${aiAnalysis.score}%` }}
+                        className="h-full bg-gradient-to-r from-[#7B61FF] to-[#F062D0]" 
+                      />
+                    </div>
+                  </div>
+                  
                   <button
                     onClick={() => setShowOptimizedModal(true)}
-                    className="w-full py-4 rounded-2xl bg-[#7B61FF]/10 border border-[#7B61FF]/20 text-[#7B61FF] text-xs font-black uppercase tracking-widest hover:bg-[#7B61FF] hover:text-white transition-all duration-300 flex items-center justify-center gap-2 group"
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#7B61FF] to-[#F062D0] text-white text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all duration-300 flex items-center justify-center gap-2 group shadow-lg shadow-purple-500/20"
                   >
                     <Eye className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    Visualize Optimized Version
+                    Visualize Optimal Solution
                   </button>
-                  
-                  <div className="flex items-center gap-2 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <p className="text-[9px] font-bold text-emerald-500/70 uppercase tracking-tighter">Optimal Complexity Target: {aiAnalysis.optimalComplexity}</p>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -473,20 +547,27 @@ export default function PracticePage() {
             <Editor
               height="100%"
               theme="vs-dark"
-              language={language === 'python' ? 'python' : language === 'javascript' ? 'javascript' : 'cpp'}
+              language={language === 'cpp' ? 'cpp' : language === 'java' ? 'java' : language}
               value={code}
               onChange={(val) => setCode(val)}
               options={{
                 fontSize: 15,
                 minimap: { enabled: false },
-                scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+                scrollbar: { vertical: 'visible', horizontal: 'visible' },
                 lineNumbers: 'on',
-                glyphMargin: false,
+                glyphMargin: true,
+                folding: true,
+                lineDecorationsWidth: 10,
+                lineNumbersMinChars: 3,
                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                 fontWeight: '500',
                 lineHeight: 1.6,
                 cursorSmoothCaretAnimation: 'on',
                 padding: { top: 30, left: 30 },
+                renderValidationDecorations: 'on',
+                quickSuggestions: { other: true, comments: true, strings: true },
+                formatOnPaste: true,
+                formatOnType: true,
               }}
             />
             <div className="absolute top-8 right-10 pointer-events-none opacity-10">
@@ -494,25 +575,59 @@ export default function PracticePage() {
             </div>
           </div>
 
-          <div className="h-64 border-t border-white/5 bg-[#080D1A] flex flex-col">
-            <div className="px-8 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Live Output Terminal</span>
+          <div className="h-72 border-t border-white/5 bg-[#080D1A] flex flex-col">
+            <div className="px-8 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Terminal</span>
+                </div>
+                <div className="h-4 w-px bg-white/10" />
+                <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1 border border-white/5">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase">Stdin</span>
+                  <input 
+                    value={stdin}
+                    onChange={(e) => setStdin(e.target.value)}
+                    placeholder="Input data here..."
+                    className="bg-transparent border-none outline-none text-[11px] text-white font-mono w-40 placeholder:text-slate-700"
+                  />
+                </div>
               </div>
-              <button onClick={() => setOutput('')} className="w-8 h-8 rounded-lg bg-white/5 text-slate-600 hover:text-white transition-all"><RotateCcw className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setOutput(null)} className="w-8 h-8 rounded-lg bg-white/5 text-slate-600 hover:text-white transition-all"><RotateCcw className="w-3.5 h-3.5" /></button>
             </div>
-            <div className="flex-1 p-8 font-mono text-[13px] overflow-auto text-slate-300 bg-[#050912] leading-relaxed">
+            <div className="flex-1 p-8 font-mono text-[13px] overflow-auto bg-[#050912] leading-relaxed scrollbar-hide">
               {isRunning ? (
                 <div className="flex items-center gap-3 text-[#7B61FF]">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="animate-pulse">Running test cases against Piston API...</span>
+                  <span className="animate-pulse">Executing code...</span>
                 </div>
               ) : output ? (
-                <pre className="whitespace-pre-wrap">{output}</pre>
+                <div className="space-y-4">
+                  {output.compileErr && (
+                    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                      <p className="text-[10px] font-black text-rose-500 uppercase mb-2">Compilation Error</p>
+                      <pre className="text-rose-400 whitespace-pre-wrap">{output.compileErr}</pre>
+                    </div>
+                  )}
+                  {output.stderr && (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-[10px] font-black text-amber-500 uppercase mb-2">Runtime Error</p>
+                      <pre className="text-amber-400 whitespace-pre-wrap">{output.stderr}</pre>
+                    </div>
+                  )}
+                  {output.stdout && (
+                    <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                      <p className="text-[10px] font-black text-emerald-500 uppercase mb-2">Standard Output</p>
+                      <pre className="text-slate-300 whitespace-pre-wrap">{output.stdout}</pre>
+                    </div>
+                  )}
+                  {!output.stdout && !output.stderr && !output.compileErr && (
+                    <span className="text-slate-600 italic">Code executed with no output.</span>
+                  )}
+                </div>
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-800 italic select-none">
-                   Execution output will appear here after running tests.
+                   Terminal ready.
                 </div>
               )}
             </div>
@@ -555,10 +670,16 @@ export default function PracticePage() {
 
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 bg-[#1e1e1e] relative">
+                  <div className="absolute top-4 left-8 z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                      <Zap className="w-3 h-3" />
+                      {aiAnalysis?.optimizedApproachName || 'Optimal Strategy'}
+                    </div>
+                  </div>
                   <Editor
                     height="100%"
                     theme="vs-dark"
-                    language={language === 'python' ? 'python' : language === 'javascript' ? 'javascript' : 'cpp'}
+                    language={language === 'cpp' ? 'cpp' : language === 'java' ? 'java' : language}
                     value={aiAnalysis?.optimizedCode || '// No optimized code available'}
                     options={{
                       readOnly: true,
@@ -569,15 +690,33 @@ export default function PracticePage() {
                       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                       fontWeight: '500',
                       lineHeight: 1.6,
-                      padding: { top: 30, left: 30 },
+                      padding: { top: 60, left: 30 },
                     }}
                   />
-                  <div className="absolute top-8 right-10 pointer-events-none opacity-5">
-                    <Zap className="w-24 h-24 text-[#7B61FF]" />
-                  </div>
                 </div>
                 <div className="w-80 border-l border-white/5 p-8 bg-[#0a121d] overflow-auto">
-                    <h4 className="text-[10px] font-black text-[#7B61FF] uppercase tracking-[0.2em] mb-6">Structural Improvements</h4>
+                    <h4 className="text-[10px] font-black text-[#7B61FF] uppercase tracking-[0.2em] mb-6">Efficiency Gap</h4>
+                    
+                    <div className="space-y-3 mb-10">
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] font-black text-slate-500 uppercase mb-2">Time Complexity</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400">Your: <span className="text-white font-mono">{aiAnalysis?.timeComplexity}</span></span>
+                          <ArrowRight className="w-3 h-3 text-slate-600" />
+                          <span className="text-[10px] text-emerald-400 font-black font-mono">{aiAnalysis?.optimalTimeComplexity}</span>
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <p className="text-[8px] font-black text-slate-500 uppercase mb-2">Space Complexity</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400">Your: <span className="text-white font-mono">{aiAnalysis?.spaceComplexity}</span></span>
+                          <ArrowRight className="w-3 h-3 text-slate-600" />
+                          <span className="text-[10px] text-emerald-400 font-black font-mono">{aiAnalysis?.optimalSpaceComplexity}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <h4 className="text-[10px] font-black text-[#7B61FF] uppercase tracking-[0.2em] mb-6">Strategic Shifts</h4>
                     <div className="space-y-6">
                       {aiAnalysis?.improvements?.map((imp, i) => (
                         <div key={i} className="flex gap-4">
@@ -588,8 +727,8 @@ export default function PracticePage() {
                     </div>
 
                     <div className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-[#7B61FF]/10 to-transparent border border-[#7B61FF]/20">
-                      <p className="text-[8px] font-black text-slate-500 uppercase mb-2 tracking-widest">Performance Note</p>
-                      <p className="text-xs text-slate-300 italic font-medium">"{aiAnalysis?.encouragement}"</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase mb-2 tracking-widest">Expert Insight</p>
+                      <p className="text-xs text-slate-300 italic font-medium leading-relaxed">"{aiAnalysis?.encouragement}"</p>
                     </div>
                 </div>
               </div>
@@ -598,5 +737,7 @@ export default function PracticePage() {
         )}
       </AnimatePresence>
     </motion.div>
+    )}
+    </div>
   )
 }
